@@ -17,6 +17,10 @@ app.use(express.json());
 app.use('/users', userRoutes);
 app.use('/pets', petRoutes);
 
+// Test API: root
+app.get('/', (req, res) => {
+  res.send('✅ Pet Care Backend is running!');
+});
 
 
 // Middleware for authentication

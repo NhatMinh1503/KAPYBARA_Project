@@ -19,7 +19,7 @@ app.use('/pets', petRoutes);
 
 
 
-// Middleware xác thực
+// Middleware for authentication
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -32,7 +32,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// API: Đăng nhập
+// API: Login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -53,7 +53,7 @@ app.post('/login', async (req, res) => {
   });
 });
 
-// API: Tạo người dùng mới
+// API: New user sign up
 app.post('/users', async (req, res) => {
   const { user_name, email, password, age, gender, weight, height, health, goal } = req.body;
   if (!user_name || !email || !password) {
@@ -84,7 +84,7 @@ app.post('/users', async (req, res) => {
   }
 });
 
-// API: Lấy thông tin người dùng
+// API: Get user information
 app.get('/users/:user_id', authenticateToken, (req, res) => {
   const userId = req.params.user_id;
   db.query('SELECT user_id, user_name, email, age, gender, weight, height, health, goal FROM user_data WHERE user_id = ?', [userId], (err, results) => {
@@ -94,7 +94,7 @@ app.get('/users/:user_id', authenticateToken, (req, res) => {
   });
 });
 
-// API: Tạo thú cưng
+// API: Create a pet
 app.post('/pets', authenticateToken, (req, res) => {
   const { type, user_id } = req.body;
   if (!type || !user_id) {
@@ -125,7 +125,7 @@ app.post('/pets', authenticateToken, (req, res) => {
   });
 });
 
-// API: Lấy thú cưng theo user
+// API: Get pets by user
 app.get('/pets/:user_id', authenticateToken, (req, res) => {
   const userId = req.params.user_id;
   const sql = 'SELECT pd.*, pt.type FROM pet_data pd JOIN pet_type pt ON pd.pet_typeid = pt.pet_typeid JOIN user_pet up ON pd.pet_id = up.pet_id WHERE up.user_id = ?';
@@ -135,7 +135,7 @@ app.get('/pets/:user_id', authenticateToken, (req, res) => {
   });
 });
 
-// API: Cập nhật trạng thái thú cưng
+// API: Update pet status
 app.post('/pet_status', authenticateToken, (req, res) => {
   const { pet_id, emotion } = req.body;
   if (!pet_id || !emotion) {
@@ -165,7 +165,7 @@ app.post('/pet_status', authenticateToken, (req, res) => {
   });
 });
 
-// API: Lấy trạng thái thú cưng
+// API: Get pet status
 app.get('/pet_status/:pet_id', authenticateToken, (req, res) => {
   const petId = req.params.pet_id;
   db.query('SELECT pet_id FROM pet_data WHERE pet_id = ?', [petId], (err, petResults) => {
@@ -181,7 +181,7 @@ app.get('/pet_status/:pet_id', authenticateToken, (req, res) => {
   });
 });
 
-// API: Lưu dữ liệu môi trường thủ công
+// API: Manually save environmental data
 app.post('/environment_data', authenticateToken, (req, res) => {
   const { description } = req.body;
   if (!description) {
@@ -200,7 +200,7 @@ app.post('/environment_data', authenticateToken, (req, res) => {
   });
 });
 
-// API: Lấy dữ liệu môi trường mới nhất
+// API: Get the latest environmental data
 app.get('/environment_data/latest', authenticateToken, (req, res) => {
   const sql = 'SELECT * FROM weather_assets ORDER BY weather_id DESC LIMIT 1';
   db.query(sql, (err, results) => {
@@ -210,27 +210,27 @@ app.get('/environment_data/latest', authenticateToken, (req, res) => {
   });
 });
 
-// API: Lấy và lưu dữ liệu thời tiết
+// API: Fetch and save weather data
 app.get('/fetch_weather', authenticateToken, async (req, res) => {
   try {
     const city = req.query.city || 'Osaka';
     const apiKey = process.env.OPENWEATHER_API_KEY;
     const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${apiKey}`;
 
-    // Lấy tọa độ từ thành phố
+    // Get coordinates from city name
     const geoResponse = await axios.get(geoUrl);
     if (!geoResponse.data[0]) {
       return res.status(404).json({ error: `City ${city} not found` });
     }
     const { lat, lon } = geoResponse.data[0];
 
-    // Lấy dữ liệu thời tiết hiện tại
+    // Get current weather data
     const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
     const weatherResponse = await axios.get(weatherUrl);
     const weatherData = weatherResponse.data;
     const weatherId = weatherData.weather[0].id;
 
-    // Tìm description dựa trên min_id và max_id
+    // Find weather description based on min_id and max_id
     const sqlFindWeather = 'SELECT description FROM weather_assets WHERE min_id <= ? AND max_id >= ?';
     db.query(sqlFindWeather, [weatherId, weatherId], (err, results) => {
       if (err) {
@@ -259,7 +259,7 @@ app.get('/fetch_weather', authenticateToken, async (req, res) => {
   }
 });
 
-// API: Các action cho thú cưng (feed, drink)
+// API: Actions for pet (feed, drink)
 app.post('/pet_action', authenticateToken, (req, res) => {
   const { pet_id, action } = req.body;
   if (!pet_id || !action) {
@@ -287,14 +287,14 @@ app.post('/pet_action', authenticateToken, (req, res) => {
   });
 });
 
-// Chạy server
+// Start the server
 const PORT = process.env.PORT;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);
   console.log('Server started successfully');
 });
 
-// Cập nhật thời tiết mỗi 2 giờ
+// Update weather every 2 hours
 schedule.scheduleJob('0 */2 * * *', async () => {
   try {
     if (!process.env.INTERNAL_TOKEN) {

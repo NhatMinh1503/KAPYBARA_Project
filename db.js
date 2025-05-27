@@ -14,7 +14,7 @@ connection.connect(err => {
     console.error('❌ Error:', err.stack);
     process.exit(1);
   }
-  console.log('✅ Kết nối MySQL thành công!' + connection.threadId);
+  console.log('✅ Success' + connection.threadId);
 });
 
 module.exports = connection;

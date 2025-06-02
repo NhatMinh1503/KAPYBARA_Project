@@ -294,7 +294,7 @@ app.post('/pet_action', authenticateToken, (req, res) => {
 // Start the server
 const PORT = process.env.PORT;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server is running at http://localhost:${PORT}`);
+  console.log(`🚀 Server is running at http://10.108.1.245:${PORT}`);
   console.log('Server started successfully');
 });
 
@@ -305,7 +305,7 @@ schedule.scheduleJob('0 */2 * * *', async () => {
       console.error('INTERNAL_TOKEN not set in .env');
       return;
     }
-    const response = await axios.get('http://localhost:3000/fetch_weather?city=Osaka', {
+    const response = await axios.get('http://10.108.1.245:3000/fetch_weather?city=Osaka', {
       headers: { 'Authorization': `Bearer ${process.env.INTERNAL_TOKEN}` }
     });
     console.log('Weather updated:', response.data);

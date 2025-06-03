@@ -214,29 +214,35 @@ app.get('/environment_data/latest', authenticateToken, (req, res) => {
   });
 });
 
-// API: Fetch and save weather data
+// API: Fetch weather data from OpenWeather
 app.get('/fetch_weather', authenticateToken, async (req, res) => {
   try {
     const city = req.query.city || 'Osaka';
     const apiKey = process.env.OPENWEATHER_API_KEY;
-    const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${apiKey}`;
 
     // Get coordinates from city name
+    const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${apiKey}`;
     const geoResponse = await axios.get(geoUrl);
+
     if (!geoResponse.data[0]) {
-      return res.status(404).json({ error: `City ${city} not found` });
+      return res.status(404).json({ error: `City "${city}" not found.` });
     }
+
     const { lat, lon } = geoResponse.data[0];
 
     // Get current weather data
     const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
     const weatherResponse = await axios.get(weatherUrl);
-    const weatherData = weatherResponse.data;
-    const weatherId = weatherData.weather[0].id;
 
-    // Find weather description based on min_id and max_id
-    const sqlFindWeather = 'SELECT description FROM weather_assets WHERE min_id <= ? AND max_id >= ?';
-    db.query(sqlFindWeather, [weatherId, weatherId], (err, results) => {
+    const weatherData = weatherResponse.data;
+    const temperature = weatherData.main.temp;
+    const humidity = weatherData.main.humidity;
+    const weatherId = weatherData.weather[0].id;
+    const description = weatherData.weather[0].description;
+
+    //Take message for each weather from weather_assets table
+    const sql = 'SELECT message FROM weather_assets WHERE min_id <= ? AND max_id >= ?';
+    db.query(sql, [weatherId, weatherId], (err, results) => {
       if (err) {
         console.error('Error querying weather_assets:', err.message);
         return res.status(500).json({ error: 'Error fetching weather data' });
@@ -244,22 +250,22 @@ app.get('/fetch_weather', authenticateToken, async (req, res) => {
       if (results.length === 0) {
         return res.status(400).json({ error: 'No matching weather condition found' });
       }
+      const message = results[0].message;
 
-      const description = results[0].description;
-      const sqlInsert = 'INSERT INTO weather_assets (description) VALUES (?)';
-      db.query(sqlInsert, [description], (err) => {
-        if (err) console.error('Error saving environment data:', err.message);
+        res.json({
+        message,
+        data: {
+          city,
+          temperature,
+          humidity,
+          weatherId,
+          description
+        }
       });
-
-      res.json({ message: 'Weather data saved', data: { description } });
     });
   } catch (error) {
-    db.query('SELECT * FROM weather_assets ORDER BY weather_id DESC LIMIT 1', (err, results) => {
-      if (err || results.length === 0) {
-        return res.status(500).json({ error: 'Error fetching weather data and no fallback available' });
-      }
-      res.json({ message: 'Weather data fetched from cache', data: results[0] });
-    });
+    console.error('Error fetching weather:', error.message);
+    res.status(500).json({ error: 'Failed to fetch weather data from OpenWeather' });
   }
 });
 

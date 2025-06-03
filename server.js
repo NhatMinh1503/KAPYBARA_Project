@@ -57,77 +57,7 @@ app.post('/login', async (req, res) => {
   });
 });
 
-// API: New user sign up
-app.post('/users', async (req, res) => {
-  const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight } = req.body;
-  if (!user_name || !email || !password) {
-    return res.status(400).json({ error: 'Missing required fields: user_name, email, password' });
-  }
-
-  const validGenders = ['男性', '女性'];
-  if (!validGenders.includes(gender)) {
-    return res.status(400).json({ error: 'Invalid gender: must be 男性 or 女性' });
-  }
-
-  try {
-    const checkEmailSql = 'SELECT user_id FROM user_data WHERE email = ?';
-    db.query(checkEmailSql, [email], async (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (results.length > 0) return res.status(400).json({ error: 'Email already exists' });
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user_id = uuidv4().slice(0, 5); // Generate 5-char user_id
-      const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-      db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal, steps, goalWeight], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'User created', user_id });
-      });
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Error hashing password' });
-  }
-});
-
-// API: Get user information
-app.get('/users/:user_id', authenticateToken, (req, res) => {
-  const userId = req.params.user_id;
-  db.query('SELECT user_id, user_name, email, age, gender, weight, height, health, goal FROM user_data WHERE user_id = ?', [userId], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json(results[0]);
-  });
-});
-
-// API: Create a pet
-app.post('/pets', authenticateToken, (req, res) => {
-  const { type, user_id } = req.body;
-  if (!type || !user_id) {
-    return res.status(400).json({ error: 'Missing required fields: type, user_id' });
-  }
-
-  db.query('SELECT user_id FROM user_data WHERE user_id = ?', [user_id], (err, userResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (userResults.length === 0) return res.status(404).json({ error: 'User not found' });
-
-    db.query('SELECT pet_typeid FROM pet_type WHERE type = ?', [type], (err, typeResults) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (typeResults.length === 0) return res.status(400).json({ error: 'Invalid pet type' });
-
-      const pet_typeid = typeResults[0].pet_typeid;
-      const sqlInsertPet = 'INSERT INTO pet_data (pet_typeid) VALUES (?)';
-      db.query(sqlInsertPet, [pet_typeid], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        const pet_id = result.insertId;
-        const sqlInsertUserPet = 'INSERT INTO user_pet (user_id, pet_id) VALUES (?, ?)';
-        db.query(sqlInsertUserPet, [user_id, pet_id], (err) => {
-          if (err) return res.status(500).json({ error: err.message });
-          res.json({ message: 'Pet created', id: pet_id });
-        });
-      });
-    });
-  });
-});
+// // API: New user sign up -> moved to userRoutes
 
 // API: Get pets by user
 app.get('/pets/:user_id', authenticateToken, (req, res) => {

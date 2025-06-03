@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
@@ -15,7 +16,42 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-router.post('/', authenticateToken, (req, res) => {
+// Create a new pet
+router.post('/', (req, res) => {
+  const { pet_typeid, user_id, pet_name, gender } = req.body;
+  console.log('Received:', { pet_typeid, user_id, pet_name, gender });
+  if (!pet_name || !pet_typeid || !user_id) {
+    return res.status(400).json({ error: 'Missing required fields: pet_name, pet_typeid' });
+  }
+
+  const validGenders = ['男性', '女性'];
+  if (!validGenders.includes(gender)) {
+    return res.status(400).json({ error: 'Invalid gender: must be 男性 or 女性' });
+  }
+
+  const pet_id = uuidv4().slice(0, 5); // Generate a unique pet_id
+  const sql = 'INSERT INTO pet_data (pet_id, pet_name, gender, pet_typeid) VALUES (?, ?, ?, ?)';
+  db.query(sql, [pet_id, pet_name, gender, pet_typeid], (err, result) => {
+    if (err) {
+    console.log('Error inserting pet_data:', err);
+    return res.status(500).json({ error: err.message });
+  }
+
+    // Associate the new pet with the user
+    const userId =  user_id;
+    const userPetSql = 'INSERT INTO user_pet (user_id, pet_id) VALUES (?, ?)';
+    db.query(userPetSql, [userId, pet_id], (err) => {
+      if (err) {
+      console.log('Error inserting user_pet:', err);
+      return res.status(500).json({ error: err.message });
+    }
+      res.json({ message: 'New pet created', id: pet_id });
+    });
+  });
+});
+
+
+router.post('/abc', authenticateToken, (req, res) => {
   const { type, user_id } = req.body;
   if (!type || !user_id) {
     return res.status(400).json({ error: 'Missing required fields: type, user_id' });

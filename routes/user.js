@@ -17,6 +17,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Create a new user
 router.post('/', async (req, res) => {
   const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight } = req.body;
   if (!user_name || !email || !password) {
@@ -40,7 +41,7 @@ router.post('/', async (req, res) => {
       const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
       db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal, steps, goalWeight], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'User created', user_id });
+        res.json({ message: 'User created', user_id: user_id });
       });
     });
   } catch (error) {

@@ -57,7 +57,9 @@ app.post('/login', async (req, res) => {
   });
 });
 
-// // API: New user sign up -> moved to userRoutes
+// API: New user sign up -> moved to userRoutes
+
+// API : Make a new pet -> moved to petRoutes
 
 // API: Get pets by user
 app.get('/pets/:user_id', authenticateToken, (req, res) => {

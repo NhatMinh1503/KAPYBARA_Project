@@ -57,77 +57,9 @@ app.post('/login', async (req, res) => {
   });
 });
 
-// API: New user sign up
-app.post('/users', async (req, res) => {
-  const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight } = req.body;
-  if (!user_name || !email || !password) {
-    return res.status(400).json({ error: 'Missing required fields: user_name, email, password' });
-  }
+// API: New user sign up -> moved to userRoutes
 
-  const validGenders = ['男性', '女性'];
-  if (!validGenders.includes(gender)) {
-    return res.status(400).json({ error: 'Invalid gender: must be 男性 or 女性' });
-  }
-
-  try {
-    const checkEmailSql = 'SELECT user_id FROM user_data WHERE email = ?';
-    db.query(checkEmailSql, [email], async (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (results.length > 0) return res.status(400).json({ error: 'Email already exists' });
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user_id = uuidv4().slice(0, 5); // Generate 5-char user_id
-      const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-      db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal, steps, goalWeight], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'User created', user_id });
-      });
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Error hashing password' });
-  }
-});
-
-// API: Get user information
-app.get('/users/:user_id', authenticateToken, (req, res) => {
-  const userId = req.params.user_id;
-  db.query('SELECT user_id, user_name, email, age, gender, weight, height, health, goal FROM user_data WHERE user_id = ?', [userId], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json(results[0]);
-  });
-});
-
-// API: Create a pet
-app.post('/pets', authenticateToken, (req, res) => {
-  const { type, user_id } = req.body;
-  if (!type || !user_id) {
-    return res.status(400).json({ error: 'Missing required fields: type, user_id' });
-  }
-
-  db.query('SELECT user_id FROM user_data WHERE user_id = ?', [user_id], (err, userResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (userResults.length === 0) return res.status(404).json({ error: 'User not found' });
-
-    db.query('SELECT pet_typeid FROM pet_type WHERE type = ?', [type], (err, typeResults) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (typeResults.length === 0) return res.status(400).json({ error: 'Invalid pet type' });
-
-      const pet_typeid = typeResults[0].pet_typeid;
-      const sqlInsertPet = 'INSERT INTO pet_data (pet_typeid) VALUES (?)';
-      db.query(sqlInsertPet, [pet_typeid], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        const pet_id = result.insertId;
-        const sqlInsertUserPet = 'INSERT INTO user_pet (user_id, pet_id) VALUES (?, ?)';
-        db.query(sqlInsertUserPet, [user_id, pet_id], (err) => {
-          if (err) return res.status(500).json({ error: err.message });
-          res.json({ message: 'Pet created', id: pet_id });
-        });
-      });
-    });
-  });
-});
+// API : Make a new pet -> moved to petRoutes
 
 // API: Get pets by user
 app.get('/pets/:user_id', authenticateToken, (req, res) => {
@@ -214,29 +146,35 @@ app.get('/environment_data/latest', authenticateToken, (req, res) => {
   });
 });
 
-// API: Fetch and save weather data
+// API: Fetch weather data from OpenWeather
 app.get('/fetch_weather', authenticateToken, async (req, res) => {
   try {
     const city = req.query.city || 'Osaka';
     const apiKey = process.env.OPENWEATHER_API_KEY;
-    const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${apiKey}`;
 
     // Get coordinates from city name
+    const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${apiKey}`;
     const geoResponse = await axios.get(geoUrl);
+
     if (!geoResponse.data[0]) {
-      return res.status(404).json({ error: `City ${city} not found` });
+      return res.status(404).json({ error: `City "${city}" not found.` });
     }
+
     const { lat, lon } = geoResponse.data[0];
 
     // Get current weather data
     const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
     const weatherResponse = await axios.get(weatherUrl);
-    const weatherData = weatherResponse.data;
-    const weatherId = weatherData.weather[0].id;
 
-    // Find weather description based on min_id and max_id
-    const sqlFindWeather = 'SELECT description FROM weather_assets WHERE min_id <= ? AND max_id >= ?';
-    db.query(sqlFindWeather, [weatherId, weatherId], (err, results) => {
+    const weatherData = weatherResponse.data;
+    const temperature = weatherData.main.temp;
+    const humidity = weatherData.main.humidity;
+    const weatherId = weatherData.weather[0].id;
+    const description = weatherData.weather[0].description;
+
+    //Take message for each weather from weather_assets table
+    const sql = 'SELECT message FROM weather_assets WHERE min_id <= ? AND max_id >= ?';
+    db.query(sql, [weatherId, weatherId], (err, results) => {
       if (err) {
         console.error('Error querying weather_assets:', err.message);
         return res.status(500).json({ error: 'Error fetching weather data' });
@@ -244,22 +182,22 @@ app.get('/fetch_weather', authenticateToken, async (req, res) => {
       if (results.length === 0) {
         return res.status(400).json({ error: 'No matching weather condition found' });
       }
+      const message = results[0].message;
 
-      const description = results[0].description;
-      const sqlInsert = 'INSERT INTO weather_assets (description) VALUES (?)';
-      db.query(sqlInsert, [description], (err) => {
-        if (err) console.error('Error saving environment data:', err.message);
+        res.json({
+        message,
+        data: {
+          city,
+          temperature,
+          humidity,
+          weatherId,
+          description
+        }
       });
-
-      res.json({ message: 'Weather data saved', data: { description } });
     });
   } catch (error) {
-    db.query('SELECT * FROM weather_assets ORDER BY weather_id DESC LIMIT 1', (err, results) => {
-      if (err || results.length === 0) {
-        return res.status(500).json({ error: 'Error fetching weather data and no fallback available' });
-      }
-      res.json({ message: 'Weather data fetched from cache', data: results[0] });
-    });
+    console.error('Error fetching weather:', error.message);
+    res.status(500).json({ error: 'Failed to fetch weather data from OpenWeather' });
   }
 });
 

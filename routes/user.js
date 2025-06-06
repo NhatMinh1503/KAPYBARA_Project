@@ -17,8 +17,9 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Create a new user
 router.post('/', async (req, res) => {
-  const {user_name, email, password, age, gender, weight, height, health, goal} = req.body;
+  const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight } = req.body;
   if (!user_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields: user_name, email, password' });
   }
@@ -35,11 +36,12 @@ router.post('/', async (req, res) => {
       if (results.length > 0) return res.status(400).json({ error: 'Email already exists' });
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user_id = uuidv4().slice(0, 5);
-      const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-      db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal], (err, result) => {
+      const user_id = uuidv4().slice(0, 5); // Generate 5-char user_id
+ 
+      const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+      db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal, steps, goalWeight], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'User created', user_id });
+        res.json({ message: 'User created', user_id: user_id });
       });
     });
   } catch (error) {

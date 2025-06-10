@@ -10,6 +10,7 @@ const schedule = require('node-schedule');
 const { v4: uuidv4 } = require('uuid'); // Added for generating user_id
 const userRoutes = require('./routes/user');
 const petRoutes = require('./routes/pet');
+const qs = require('qs');
 
 
 app.use(cors());
@@ -117,35 +118,6 @@ app.get('/pet_status/:pet_id', authenticateToken, (req, res) => {
   });
 });
 
-// API: Manually save environmental data
-app.post('/environment_data', authenticateToken, (req, res) => {
-  const { description } = req.body;
-  if (!description) {
-    return res.status(400).json({ error: 'Missing required field: description' });
-  }
-
-  db.query('SELECT weather_id FROM weather_assets WHERE description = ?', [description], (err, weatherResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (weatherResults.length === 0) return res.status(400).json({ error: 'Invalid weather description' });
-
-    const sql = 'INSERT INTO weather_assets (description) VALUES (?)';
-    db.query(sql, [description], (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: 'Environment data saved', id: result.insertId });
-    });
-  });
-});
-
-// API: Get the latest environmental data
-app.get('/environment_data/latest', authenticateToken, (req, res) => {
-  const sql = 'SELECT * FROM weather_assets ORDER BY weather_id DESC LIMIT 1';
-  db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(404).json({ error: 'No environment data found' });
-    res.json(results[0]);
-  });
-});
-
 // API: Fetch weather data from OpenWeather
 app.get('/fetch_weather', authenticateToken, async (req, res) => {
   try {
@@ -228,6 +200,45 @@ app.post('/pet_action', authenticateToken, (req, res) => {
     });
   });
 });
+
+// Fetch nutrition data from USDA API
+app.get('/food_data', async (req, res) => {
+  try {
+    const food = req.query.name;
+    const apiKey = process.env.USDA_API_KEY;
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&query=${food}`;
+    
+    const response = await axios.get(url);
+    if (response.data.foods.length === 0) {
+      return res.status(404).json({ error: 'No nutrition data found for the specified food' });
+    }
+
+    res.json(response.data.foods[0]);
+  } catch (error) {
+    console.error('Error fetching nutrition data:', error.message);
+    res.status(500).json({ error: 'Failed to fetch nutrition data from USDA API' });
+  }
+});
+
+// API: Save calories to database
+app.post('/daily-calories', authenticateToken, (req, res) => {
+  const { calories, user_id, log_date} = req.body;
+
+  if (!calories || typeof calories !== 'number') {
+    return res.status(400).json({ error: 'Invalid or missing Calories' });
+  }
+  if (!user_id || typeof user_id !== 'string') {
+    return res.status(400).json({ error: 'Missing user_id' });
+  }
+
+  db.query('INSERT INTO calories (user_id, calories, log_date) VALUES (?, ?, ?)', [user_id, calories, log_date], (err, result) => {
+    if (err) {
+      console.error('Error saving calories:', err.message);
+      return res.status(500).json({ error: 'Failed to save calories' });
+    }
+    res.json({ message: 'Calories saved successfully'});
+  });
+})
 
 // Start the server
 const PORT = process.env.PORT;

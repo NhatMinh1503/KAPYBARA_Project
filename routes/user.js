@@ -20,6 +20,8 @@ const authenticateToken = (req, res, next) => {
 // Create a new user
 router.post('/', async (req, res) => {
   const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight } = req.body;
+  //To do: count daily calories based on weight and height
+  //To do: input goal water intake based on user input
   if (!user_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields: user_name, email, password' });
   }

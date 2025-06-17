@@ -206,7 +206,7 @@ app.get('/food_data', async (req, res) => {
   try {
     const food = req.query.name;
     const apiKey = process.env.USDA_API_KEY;
-    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&query=${food}`;
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${apiKey}&query=${food}`;
     
     const response = await axios.get(url);
     if (response.data.foods.length === 0) {
@@ -224,11 +224,14 @@ app.get('/food_data', async (req, res) => {
 app.post('/daily-data', (req, res) => {
   const { calories, user_id, log_date, waterIntake, steps} = req.body;
 
-  if (!calories || typeof calories !== 'number') {
+  if (typeof calories !== 'number') {
     return res.status(400).json({ error: 'Invalid or missing Calories' });
   }
-  if (!steps || typeof steps !== 'number') {
-    return res.status(400).json({ error: 'Invalid or missing Calories' });
+  if (typeof steps !== 'number') {
+    return res.status(400).json({ error: 'Invalid or missing Steps' });
+  }
+  if (typeof waterIntake !== 'number') {
+    return res.status(400).json({ error: 'Invalid or missing Water Intake' });
   }
   if (!user_id || typeof user_id !== 'string') {
     return res.status(400).json({ error: 'Missing user_id' });

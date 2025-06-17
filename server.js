@@ -54,7 +54,7 @@ app.post('/login', async (req, res) => {
     if (!isMatch) return res.status(401).json({ error: 'Invalid email or password' });
 
     const token = jwt.sign({ user_id: user.user_id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ message: 'Login successful', token });
+    res.json({ message: 'Login successful', token, user_id: user.user_id });
   });
 });
 
@@ -221,24 +221,58 @@ app.get('/food_data', async (req, res) => {
 });
 
 // API: Save calories to database
-app.post('/daily-calories', authenticateToken, (req, res) => {
-  const { calories, user_id, log_date} = req.body;
+app.post('/daily-data', (req, res) => {
+  const { calories, user_id, log_date, waterIntake, steps} = req.body;
 
   if (!calories || typeof calories !== 'number') {
+    return res.status(400).json({ error: 'Invalid or missing Calories' });
+  }
+  if (!steps || typeof steps !== 'number') {
     return res.status(400).json({ error: 'Invalid or missing Calories' });
   }
   if (!user_id || typeof user_id !== 'string') {
     return res.status(400).json({ error: 'Missing user_id' });
   }
 
-  db.query('INSERT INTO calories (user_id, calories, log_date) VALUES (?, ?, ?)', [user_id, calories, log_date], (err, result) => {
-    if (err) {
-      console.error('Error saving calories:', err.message);
-      return res.status(500).json({ error: 'Failed to save calories' });
-    }
-    res.json({ message: 'Calories saved successfully'});
+  const queries = [
+    new Promise((resolve, reject) => {
+      db.query(
+        'INSERT INTO calories (user_id, calories, log_date) VALUES (?, ?, ?)', [user_id, calories, log_date], (err) => err ? reject(err) : resolve()
+      );
+    }),
+
+    new Promise((resolve, reject) => {
+      db.query(
+        'INSERT INTO water (user_id, water, log_date) VALUES (?, ?, ?)', [user_id, waterIntake, log_date], (err) => err ? reject(err) : resolve()
+      );
+    }),
+
+    new Promise((resolve, reject) => {
+      db.query(
+        'INSERT INTO steps (user_id, steps, log_date) VALUES (?, ?, ?)', [user_id, steps, log_date], (err) => err ? reject(err) : resolve()
+      );
+    }),
+  ];
+
+  Promise.all(queries)
+    .then(() => res.json({ message: "All data saved successfully"}))
+    .catch((err) => {
+      console.log('Error saving daily data:', err.message);
+      res.status(500).json({ error: 'Failed to save some data'});
+    });
+});
+
+// API: Get goals by user_id
+app.get('/goals/:user_id', (req, res) => {
+  const userId = req.params.user_id;
+  db.query('SELECT goalWater, steps FROM user_data WHERE user_id = ?', [userId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0) return res.status(404).json({ error: 'User not found' });
+    console.log(results);
+    console.log(userId);
+    res.json({ waterGoal: results[0].goalWater, steps: results[0].steps });
   });
-})
+});
 
 // Start the server
 const PORT = process.env.PORT;

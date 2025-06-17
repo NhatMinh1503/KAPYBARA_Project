@@ -51,9 +51,60 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.get('/:user_id', authenticateToken, (req, res) => {
+router.patch('/update_data/:user_id', authenticateToken, (req, res) => {
+  const user_id = req.params.user_id;
+  const { user_name, email, age, gender, height, weight} = req.body;
+
+  const updates = [];
+  const values = [];
+
+  if(user_name !== undefined){
+    updates.push('user_name = ?');
+    values.push(user_name);
+  }
+
+  if(email !== undefined){
+    updates.push('email = ?');
+    values.push(email);
+  }
+
+  if(age !== undefined){
+    updates.push('age = ?');
+    values.push(age);
+  }
+
+  if(gender !== undefined){
+    updates.push('gender = ?');
+    values.push(gender);
+  }
+
+  if(height !== undefined){
+    updates.push('height = ?');
+    values.push(height);
+  }
+
+  if(weight !== undefined){
+    updates.push('weight = ?');
+    values.push(weight);
+  }
+
+  if(updates.length === 0){
+    return res.status(400).json({ error: 'No data to be updated!'})
+  }
+
+  values.push(user_id);
+
+  const sql = `UPDATE user_data SET ${updates.join(', ')} WHERE user_id = ?`;
+
+  db.query(sql, values, (err, result) => {
+    if(err) return res.status(500).json({ error: err.message});
+    res.json({ message: 'Data updated!'});
+  });
+});
+
+router.get('/getUser_data/:user_id', authenticateToken, (req, res) => {
   const userId = req.params.user_id;
-  db.query('SELECT user_id, user_name, email, age, gender, weight, height, health, goal FROM user_data WHERE user_id = ?', [userId], (err, results) => {
+  db.query('SELECT user_name, email, age, gender, weight, height FROM user_data WHERE user_id = ?', [userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (results.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json(results[0]);

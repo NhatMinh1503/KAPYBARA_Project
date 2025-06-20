@@ -19,17 +19,38 @@ const authenticateToken = (req, res, next) => {
 
 // Create a new user
 router.post('/', async (req, res) => {
-  const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight } = req.body;
-  //To do: count daily calories based on weight and height
-  //To do: input goal water intake based on user input
-  if (!user_name || !email || !password) {
-    return res.status(400).json({ error: 'Missing required fields: user_name, email, password' });
-  }
+  const { user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight, goalWater, wakeupTime, sleepTime } = req.body;
 
   const validGenders = ['男性', '女性'];
   if (!validGenders.includes(gender)) {
     return res.status(400).json({ error: 'Invalid gender: must be 男性 or 女性' });
   }
+
+  //count daily calories based on weight, height and age
+  let BMR;
+
+  if(gender === '女性'){
+    BMR = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);  //Revised Harris-Benedict Equation
+  }else{
+    BMR = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+  }
+
+  const goalCalories = BMR;
+
+  if (!user_name || !email || !password) {
+    return res.status(400).json({ error: 'Missing required fields: user_name, email, password' });
+  }
+
+  if (!age || !weight || !height) {
+  return res.status(400).json({ error: 'Missing required fields: age, weight, height' });
+  }
+
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+  if (!timeRegex.test(wakeupTime) || !timeRegex.test(sleepTime)) {
+    return res.status(400).json({ error: 'Invalid time format (HH:MM)' });
+  }
+
+
 
   try {
     const checkEmailSql = 'SELECT user_id FROM user_data WHERE email = ?';
@@ -40,8 +61,8 @@ router.post('/', async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
       const user_id = uuidv4().slice(0, 5); // Generate 5-char user_id
  
-      const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-      db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal, steps, goalWeight], (err, result) => {
+      const sql = 'INSERT INTO user_data (user_id, user_name, email, password, age, gender, weight, height, health, goal, steps, goalWeight, goalCalories, goalWater, wakeupTime, sleepTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+      db.query(sql, [user_id, user_name, email, hashedPassword, age, gender, weight, height, health, goal, steps, goalWeight, goalCalories, goalWater, wakeupTime, sleepTime], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'User created', user_id: user_id });
       });

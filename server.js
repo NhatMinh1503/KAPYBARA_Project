@@ -11,6 +11,10 @@ const { v4: uuidv4 } = require('uuid'); // Added for generating user_id
 const userRoutes = require('./routes/user');
 const petRoutes = require('./routes/pet');
 const qs = require('qs');
+const { getWeightData } = require('./weightService');
+const { getStepsData } = require('./stepService');
+const { getCaloriesData } = require('./caloriesService');
+const { getWaterData } = require('./waterService');
 
 
 app.use(cors());
@@ -268,57 +272,80 @@ app.post('/daily-data', (req, res) => {
 // API: Get goals by user_id
 app.get('/goals/:user_id', (req, res) => {
   const userId = req.params.user_id;
-  db.query('SELECT goalWater, steps, goalWeight, goalCalories FROM user_data WHERE user_id = ?', [userId], (err, results) => {
+  db.query('SELECT goalWater, steps FROM user_data WHERE user_id = ?', [userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (results.length === 0) return res.status(404).json({ error: 'User not found' });
     console.log(results);
     console.log(userId);
-    res.json({
-      waterGoal: results[0].goalWater,
-      steps: results[0].steps,
-      goalCalories: results[0].goalCalories,
-      goalWeight: results[0].goalWeight
-    });
+    res.json({ waterGoal: results[0].goalWater, steps: results[0].steps });
   });
 });
 
-// API: Goal settings
-app.patch('/goal_setting/:user_id', authenticateToken, (req, res) => {
-  const user_id = req.params.user_id;
-  const { goalWeight, steps, goalCalories, goalWater} = req.body;
+// API: Get weight data for chart
+app.get('/weight_data/:mode', async (req, res) => {
+  const mode = req.params.mode;
+  const { user_id } = req.query;
 
-  const updates = [];
-  const values = [];
+  if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
 
-  if(goalWeight !== undefined){
-    updates.push('goalWeight = ?');
-    values.push(goalWeight);
+  try {
+    const result = await getWeightData(mode, user_id);
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting weight data:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to retrieve weight data' });
+  }
+});
+
+// API: Get step data for chart
+app.get('/steps_data/:mode', async (req, res) => {
+  const mode = req.params.mode;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: 'Missing user_id' });
   }
 
-  if(steps !== undefined){
-    updates.push('steps = ?');
-    values.push(steps);
+  try {
+    const result = await getStepsData(mode, user_id);
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting steps data:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve steps data' });
+  }
+});
+
+// API: Get calories data for chart
+app.get('/calories_data/:mode', async (req, res) => {
+  const mode = req.params.mode;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: 'Missing user_id' });
   }
 
-  if(goalCalories !== undefined){
-    updates.push('goalCalories = ?');
-    values.push(goalCalories);
+  try {
+    const result = await getCaloriesData(mode, user_id);
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting calories data:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve calories data' });
   }
+});
 
-  if(goalWater !== undefined){
-    updates.push('goalWater = ?');
-    values.push(goalWater);
+// API: Get water data for chart
+app.get('/water_data/:mode', async (req, res) => {
+  const mode = req.params.mode;
+  const { user_id } = req.query;
+  if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
+
+  try {
+    const result = await getWaterData(mode, user_id);
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting water data:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve water data' });
   }
-
-  values.push(user_id);
-
-  const sql = `UPDATE user_data SET ${updates.join(', ')} WHERE user_id = ?`;
-
-  db.query(sql, values, (err, result) => {
-    if(err) return res.status(500).json({ error: err.message});
-    res.json({ message: 'Data updated!'});
-  });
-
 });
 
 // Start the server

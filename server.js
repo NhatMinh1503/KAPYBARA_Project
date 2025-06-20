@@ -272,12 +272,59 @@ app.post('/daily-data', (req, res) => {
 // API: Get goals by user_id
 app.get('/goals/:user_id', (req, res) => {
   const userId = req.params.user_id;
-  db.query('SELECT goalWater, steps FROM user_data WHERE user_id = ?', [userId], (err, results) => {
+  db.query('SELECT goalWater, steps, goalWeight, goalCalories FROM user_data WHERE user_id = ?', [userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (results.length === 0) return res.status(404).json({ error: 'User not found' });
     console.log(results);
     console.log(userId);
-    res.json({ waterGoal: results[0].goalWater, steps: results[0].steps });
+    res.json({ 
+      waterGoal: results[0].goalWater, 
+      steps: results[0].steps,
+      goalWeight: results[0].goalWeight,
+      goalCalories: results[0].goalCalories
+    });
+  });
+});
+
+//API: Update Goals
+app.patch('/goal_setting/:user_id', (req, res) => {
+  const user_id = req.params.user_id;
+  const { goalWeight, steps, goalCalories, goalWater} = req.body;
+
+  const updates = [];
+  const values = [];
+
+  if(goalWeight !== undefined){
+    updates.push('goalWeight = ?');
+    values.push(goalWeight);
+  }
+
+  if(steps !== undefined){
+    updates.push('steps = ?');
+    values.push(steps);
+  }
+
+  if(goalCalories !== undefined){
+    updates.push('goalCalories = ?');
+    values.push(goalCalories);
+  }
+
+  if(goalWater !== undefined){
+    updates.push('goalWater = ?');
+    values.push(goalWater);
+  }
+
+  if(updates.length === 0){
+    return res.status(400).json({ error: 'No data to be updated!'})
+  }
+
+  values.push(user_id);
+
+  const sql = `UPDATE user_data SET ${updates.join(', ')} WHERE user_id = ?`;
+
+  db.query(sql, values, (err, result) => {
+    if(err) return res.status(500).json({ error: err.message});
+    res.json({ message: 'Data updated!'});
   });
 });
 

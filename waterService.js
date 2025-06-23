@@ -74,3 +74,4 @@ async function getWaterData(mode, user_id) {
 }
 
 module.exports = { getWaterData };
+>>>>>>> 29336a2a8574acacc9c90a6e44fe08819e4497a8

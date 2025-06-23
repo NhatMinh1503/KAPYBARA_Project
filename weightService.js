@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const mysql2 = require('mysql2/promise');
 
 async function getWeightData(mode, user_id) {

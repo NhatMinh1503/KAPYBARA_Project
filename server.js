@@ -207,24 +207,34 @@ app.post('/pet_action', authenticateToken, (req, res) => {
   });
 });
 
-// Fetch nutrition data from USDA API
+// Fetch nutrition data from Database
 app.get('/food_data', async (req, res) => {
   try {
-    const food = req.query.name;
-    const apiKey = process.env.USDA_API_KEY;
-    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${apiKey}&query=${food}`;
-    
-    const response = await axios.get(url);
-    if (response.data.foods.length === 0) {
-      return res.status(404).json({ error: 'No nutrition data found for the specified food' });
+    const fname = req.query.name;
+
+    if (!fname) {
+      return res.status(400).json({ error: 'Missing food name parameter.' });
     }
 
-    res.json(response.data.foods[0]);
+    // Gunakan Promise agar bisa pakai await
+    const [rows] = await db.promise().query(
+      "SELECT * FROM foods WHERE FNAME LIKE ?",
+      [`%${fname}%`]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No food found in the database!' });
+    }
+
+    // Kirim data ke client
+    res.json(rows);
+
   } catch (error) {
-    console.error('Error fetching nutrition data:', error.message);
-    res.status(500).json({ error: 'Failed to fetch nutrition data from USDA API' });
+    console.error('Error fetching food data:', error.message);
+    res.status(500).json({ error: 'Failed to fetch food data from the database.' });
   }
 });
+
 
 // API: Save calories to database
 app.post('/daily-data', (req, res) => {

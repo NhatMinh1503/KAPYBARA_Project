@@ -1,6 +1,7 @@
 const mysql2 = require('mysql2/promise');
 
 async function getCaloriesData(mode, user_id) {
+  console.log(user_id);
   const connection = await mysql2.createConnection({
     host: 'localhost',
     user: 'root',

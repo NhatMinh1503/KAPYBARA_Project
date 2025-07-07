@@ -407,6 +407,27 @@ app.get('/water_data/:mode', async (req, res) => {
   }
 });
 
+// API: Insert sleep data to database
+app.post('/sleep_data/:user_id', authenticateToken, (req, res) => {
+  const user_id = req.params.user_id;
+  if (!user_id) {
+    return res.status(400).json({ error: 'Missing user_id' });
+  }
+  const sleep = req.body;
+  if (!sleep) {
+    return res.status(400).json({ error: 'Missing required fields: sleep' });
+  }
+  const sql = 'INSERT INTO sleep (user_id, sleep) VALUES (?, ?)';
+  db.query(sql, [user_id, sleep], (err, result) => {
+    if (err) {
+      console.error('Error inserting sleep data:', err.message);
+      return res.status(500).json({ error: 'Failed to insert sleep data' });
+    }
+    res.json({ message: 'Sleep data inserted successfully', id: result.insertId });
+  });
+});
+
+
 // Start the server
 const PORT = process.env.PORT;
 app.listen(PORT, '0.0.0.0', () => {

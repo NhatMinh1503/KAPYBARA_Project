@@ -11,10 +11,10 @@ const { v4: uuidv4 } = require('uuid'); // Added for generating user_id
 const userRoutes = require('./routes/user');
 const petRoutes = require('./routes/pet');
 const qs = require('qs');
-const { getWeightData } = require('./weightService');
-const { getStepsData } = require('./stepService');
-const { getCaloriesData } = require('./caloriesService');
-const { getWaterData } = require('./waterService');
+const { getWeightData } = require('./services/weightService');
+const { getStepsData } = require('./services/stepService');
+const { getCaloriesData } = require('./services/caloriesService');
+const { getWaterData } = require('./services/waterService');
 const emailRoutes = require('./services/emailService');
 
 
@@ -429,24 +429,25 @@ app.post('/sleep_data/:user_id', authenticateToken, (req, res) => {
 
 
 // Start the server
+const SERVER_IP = process.env.SERVER_IP;
 const PORT = process.env.PORT;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server is running at http://localhost:${PORT}`);
+  console.log(`🚀 Server is running at localhost`);
   console.log('Server started successfully');
 });
 
 // Update weather every 2 hours
-schedule.scheduleJob('0 */2 * * *', async () => {
-  try {
-    if (!process.env.INTERNAL_TOKEN) {
-      console.error('INTERNAL_TOKEN not set in .env');
-      return;
-    }
-    const response = await axios.get('http://localhost:3000/fetch_weather?city=Osaka', {
-      headers: { 'Authorization': `Bearer ${process.env.INTERNAL_TOKEN}` }
-    });
-    console.log('Weather updated:', response.data);
-  } catch (error) {
-    console.error('Error updating weather:', error.message);
-  }
-});
+// schedule.scheduleJob('0 */2 * * *', async () => {
+//   try {
+//     if (!process.env.INTERNAL_TOKEN) {
+//       console.error('INTERNAL_TOKEN not set in .env');
+//       return;
+//     }
+//     const response = await axios.get(`${SERVER_IP}/fetch_weather?city=Osaka`, {
+//       headers: { 'Authorization': `Bearer ${process.env.INTERNAL_TOKEN}` }
+//     });
+//     console.log('Weather updated:', response.data);
+//   } catch (error) {
+//     console.error('Error updating weather:', error.message);
+//   }
+// });
